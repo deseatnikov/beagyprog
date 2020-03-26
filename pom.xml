@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.mapr.demos.mqtt</groupId>
-  <artifactId>mqtt-sample-code</artifactId>
+  <groupId>dani</groupId>
+  <artifactId>mqttBeagyprog</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <dependencies>
@@ -25,8 +25,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>8</source>
+          <target>8</target>
         </configuration>
       </plugin>
       <plugin>
@@ -35,7 +35,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.mapr.demo.mqtt.MqttApp</mainClass>
+              <mainClass>MqttApp</mainClass>
             </manifest>
           </archive>
           <descriptorRefs>
@@ -48,29 +48,6 @@
             <phase>package</phase>
             <goals>
               <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.skife.maven</groupId>
-        <artifactId>really-executable-jar-maven-plugin</artifactId>
-        <version>1.1.0</version>
-        <configuration>
-          <!-- value of flags will be interpolated into the java invocation -->
-          <!-- as "java $flags -jar ..." -->
-          <!--<flags></flags>-->
-
-          <!-- (optional) name for binary executable, if not set will just -->
-          <!-- make the regular jar artifact executable -->
-          <programFile>mqtt-sample</programFile>
-        </configuration>
-
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>really-executable-jar</goal>
             </goals>
           </execution>
         </executions>
