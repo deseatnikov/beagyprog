@@ -1,24 +1,15 @@
-import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
-import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.MqttTopic;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class Watcher implements MqttCallbackExtended {
     private MqttClient client;
-    private String defaultServerTopic = "server";
     private List<MqttTopicData> subbedTopics = new ArrayList<>();
 
     private int armageddon = 0;
@@ -27,11 +18,11 @@ public class Watcher implements MqttCallbackExtended {
         client = new MqttClient(ip, name);
         client.connect();
         client.setCallback(this);
-        subToTopicIfAble("Login", MqttTopicType.global);
-        subToTopicIfAble("Starter", MqttTopicType.global);
-        subToTopicIfAble("Loaded", MqttTopicType.global);
-        subToTopicIfAble("Armageddon", MqttTopicType.global);
-        publishMessage("Szerver készen áll!");
+        subToTopicIfAble(BrrStringConsts.TOPIC_LOGIN, MqttTopicType.global);
+        subToTopicIfAble(BrrStringConsts.TOPIC_START, MqttTopicType.global);
+        subToTopicIfAble(BrrStringConsts.TOPIC_LOAD_PACKAGE, MqttTopicType.global);
+        subToTopicIfAble(BrrStringConsts.TOPIC_STOP_ALL, MqttTopicType.global);
+        publishMessage(BrrStringConsts.MESSAGE_READY);
     }
 
     private void saveStatus(String topic, String status) {
@@ -51,17 +42,18 @@ public class Watcher implements MqttCallbackExtended {
     }
 
     public void process() throws MqttException {
+        // TODO scratch this garbage (fb group)
         if (0 < armageddon) {
-            publishMessage("ARMAGEDDON!!! (" + armageddon + ")");
+            publishMessage(BrrStringConsts.MESSAGE_STOP_ALL + " (" + armageddon + ")");
             if (1 == armageddon--) {
                 restoreAllClientStatuses();
-                publishMessage("A munka sajnos nem állhat meg! Vissza mindenki!");
+                publishMessage(BrrStringConsts.MESSAGE_RESUME_ALL);
             }
         }
     }
 
     public void publishMessage(String message) throws MqttException {
-        publishMessage(message, defaultServerTopic);
+        publishMessage(message, BrrStringConsts.TOPIC_SERVER_DEFAULT);
     }
 
     public void publishMessage(String message, String topic) throws MqttException {
@@ -84,31 +76,35 @@ public class Watcher implements MqttCallbackExtended {
 
     @Override
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-        if (s.equals("Login")) {
-            handleLogin(mqttMessage);
-        } else if (s.equals("Starter")) {
-            handleStart(mqttMessage);
-        } else if (s.equals("Armageddon")) {
-            handleArmageddon();
-        } else if (s.equals("Loaded")) {
-            handleLoaded(mqttMessage);
+        switch (s) {
+            case BrrStringConsts.TOPIC_LOGIN:
+                handleLogin(mqttMessage);
+                break;
+            case BrrStringConsts.TOPIC_START:
+                handleStart(mqttMessage);
+                break;
+            case BrrStringConsts.TOPIC_STOP_ALL:
+                handleArmageddon();
+                break;
+            case BrrStringConsts.TOPIC_LOAD_PACKAGE:
+                handleLoaded(mqttMessage);
+                break;
         }
     }
 
     private void handleLogin(MqttMessage msg) throws MqttException {
-        setClientStatus("Parked", msg.toString());
-        saveStatus(msg.toString(), "Parked");
+        setClientStatus(BrrStringConsts.CLIENT_STATUS_READY, msg.toString());
+        saveStatus(msg.toString(), BrrStringConsts.CLIENT_STATUS_READY);
     }
 
     private void handleStart(MqttMessage msg) throws MqttException {
-        setClientStatus("Started", msg.toString());
-        saveStatus(msg.toString(), "Started");
-        getAllClients().stream().filter(x -> x.getSavedStatus().equals("Parked"))
+        setClientStatus(BrrStringConsts.CLIENT_STATUS_STARTED, msg.toString());
+        saveStatus(msg.toString(), BrrStringConsts.CLIENT_STATUS_STARTED);
+        getAllClients().stream().filter(x -> x.getSavedStatus().equals(BrrStringConsts.CLIENT_STATUS_READY))
                 .forEach(x -> {
                     try {
-                        // exception too many publishes
-                        setClientStatusNoLog("Halt", x.getTopicName());
-                        x.setSavedStatus("Halt");
+                        setClientStatusNoLog(BrrStringConsts.CLIENT_STATUS_HALTED, x.getTopicName());
+                        x.setSavedStatus(BrrStringConsts.CLIENT_STATUS_HALTED);
                     } catch (MqttException e) {
                         e.printStackTrace();
                     }
@@ -116,23 +112,34 @@ public class Watcher implements MqttCallbackExtended {
     }
 
     private void handleLoaded(MqttMessage msg) throws MqttException {
-        String id = msg.toString().split(",")[0];
-        String csomagid = msg.toString().split(",")[1];
-        setClientStatus("Work In Progress", id);
-        saveStatus(id, "Work In Progress");
-        getAllClients().stream().filter(x -> x.getSavedStatus().equals("Halt"))
+        String id = null;
+        String csomagid = null;
+        try {
+            id = msg.toString().split(",")[0];
+            csomagid = msg.toString().split(",")[1];
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            if (null == id || id.isEmpty()) {
+                id = msg.toString();
+            }
+        }
+
+        setClientStatus(BrrStringConsts.CLIENT_STATUS_MOVING, id);
+        saveStatus(id, BrrStringConsts.CLIENT_STATUS_MOVING);
+        getAllClients().stream().filter(x -> x.getSavedStatus().equals(BrrStringConsts.CLIENT_STATUS_HALTED))
                 .forEach(x ->{
                     try {
-                        // exception too many publishes
-                        setClientStatusNoLog("Parked", x.getTopicName());
-                        x.setSavedStatus("Parked");
+                        setClientStatusNoLog(BrrStringConsts.CLIENT_STATUS_READY, x.getTopicName());
+                        x.setSavedStatus(BrrStringConsts.CLIENT_STATUS_READY);
                     } catch (MqttException e) {
                         e.printStackTrace();
                     }
                 });
-        // TODO csomagid
+        // TODO csomagid kezelés
     }
 
+    // needed in loops because exception is thrown if there are too many publishes
     private void setClientStatusNoLog(String status, String topic) throws MqttException {
         subToTopicIfAble(topic, MqttTopicType.client);
         publishMessage(status, topic);
@@ -141,14 +148,13 @@ public class Watcher implements MqttCallbackExtended {
     private void setClientStatus(String status, String topic) throws MqttException {
         subToTopicIfAble(topic, MqttTopicType.client);
         publishMessage(status, topic);
-        publishMessage(topic + " státusza a következőre állítva: " + status);
+        publishMessage(topic + BrrStringConsts.MESSAGE_STATUS_CHANGED + status);
     }
 
     private void handleArmageddon() {
         getAllClients().forEach(x -> {
             try {
-                // error too many publishes
-                setClientStatusNoLog("Armageddon", x.getTopicName());
+                setClientStatusNoLog(BrrStringConsts.CLIENT_STATUS_STOPPED, x.getTopicName());
             } catch (MqttException e) {
                 e.printStackTrace();
             }
