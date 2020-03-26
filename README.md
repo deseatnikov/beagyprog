@@ -1,49 +1,17 @@
-# Getting Started with MQTT and Java
+# Csoport 3 szerver használati útmutató
+csak akkor működik ha ez a kód fut éppen btw
 
-This project is a simple application to show how to start your first MQTT Application.
+subscribe saját topicra (név, nem muszáj egyenlő legyen a kliens id-vel, de legyen egyedi)
+subscribe Armageddon
+Login topicra send név
 
-## Prerequisite
+-> saját topicról kell kapni egy Parked-et
 
-* Maven 3.3.x
-* Install a MQTT Broker, for example [Mosquitto](https://mosquitto.org/
-    
-    
-## Build and run the application
+ha státusz Parked, még nem vettél fel csomagot, nincs előtted másik kocsi Starter topicra küldd a neved (amíg fel nem veszed addig mindenki a rajtvonalon Halt-on lesz)
+-> saját topicra kap egy Started-et
 
-**1- Run the MQTT broker**
+ha armageddonra megy üzenet akkor minden kocsi Armageddon státuszt kap -> letelik egy kis idő majd visszakapja a régi státuszát
 
-For example using Mosquitto on OSX:
+doboz sikeres felvételekor Loadedre kell a következőt küldeni: név,csomagid -> minden Haltot Parked-ra rak, téged Work In Progress-re
 
-```
-/usr/local/sbin/mosquitto
-```
-
-
-**2- Build the project with Apache Maven:**
-
-This project is a simple Java application that runs a publisher and subscriber using the [Eclipse Paho library](https://eclipse.org/paho/).
-
-
-```
-$ mvn clean package
-```
-
-For convenience, the example programs project is set up so that the maven package target produces a single executable, 
-`/mqtt-sample `, that includes all of the example programs and dependencies.
-
-
-**3- Run the Subscriber**
-
-The subscriber will received and print all the messages published on the `iot_data` topic.
-
-```
-$ ./target/mqtt-sample subscriber
-```
-
-**4- Run the Publisher**
-
-Run the publisher with the following command, the second parameter is the message to publish
-
-```
-$ ./target/mqtt-sample publisher "My first MQTT message..."
-```
+egyelőre ennyi
